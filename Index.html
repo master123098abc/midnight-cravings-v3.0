@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Midnight Dare: Pro Edition V3.0</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;1,400&family=Orbitron:wght@400;700;900&display=swap');
+        
+        :root {
+            --neon-pink: #ff2a6d; 
+            --neon-blue: #05d9e8; 
+            --neon-purple: #bc13fe;
+            --dark-bg: #01010b; 
+            --glass: rgba(15, 15, 25, 0.65); 
+            --border: rgba(255, 255, 255, 0.15);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--dark-bg); color: #fff;
+            font-family: 'Montserrat', sans-serif; overflow: hidden;
+            user-select: none; /* Prevent text selection */
+        }
+
+        /* Background Canvas */
+        #particle-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        
+        /* Screen Management */
+        .screen {
+            display: none; position: relative; z-index: 10; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; height: 100%; padding: 20px; box-sizing: border-box;
+            background: radial-gradient(circle at center, rgba(5, 217, 232, 0.03) 0%, transparent 70%);
+        }
+        .active { display: flex; animation: screenEnter 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        
+        @keyframes screenEnter { 
+            from { opacity: 0; transform: scale(1.02); filter: blur(4px); } 
+            to { opacity: 1; transform: scale(1); filter: blur(0); } 
+        }
+
+        /* Typography & Headings */
+        h1.title-midnight { font-family: 'Orbitron', sans-serif; font-size: 3.2rem; letter-spacing: 5px; color: var(--neon-pink); text-shadow: 0 0 15px rgba(255, 42, 109, 0.8); margin: 0; text-align: center; line-height: 1.1; }
+        h1.title-dare { font-family: 'Orbitron', sans-serif; font-size: 4rem; letter-spacing: 8px; color: var(--neon-blue); text-shadow: 0 0 20px rgba(5, 217, 232, 0.8); margin: 0 0 10px 0; text-align: center; line-height: 1.1; }
+        .version-tag { color: #888; letter-spacing: 5px; text-transform: uppercase; font-size: 0.85rem; margin-bottom: 40px; font-weight: bold; }
+        h2 { font-family: 'Orbitron', sans-serif; color: var(--neon-blue); text-transform: uppercase; letter-spacing: 2px; }
+        
+        /* Containers */
+        .glass-card {
+            background: var(--glass); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            transition: box-shadow 0.3s ease;
+        }
+
+        /* Buttons */
+        .btn {
+            background: transparent; color: #fff; border: 2px solid var(--neon-blue); padding: 15px 30px;
+            font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: 700; text-transform: uppercase; 
+            border-radius: 30px; cursor: pointer; transition: all 0.3s ease; margin: 10px; 
+            box-shadow: 0 0 10px rgba(5, 217, 232, 0.1); position: relative; overflow: hidden;
+        }
+        .btn::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: all 0.5s ease;
+        }
+        .btn:hover::before { left: 100%; }
+        .btn:hover { background: rgba(5, 217, 232, 0.1); box-shadow: 0 0 20px rgba(5, 217, 232, 0.4), inset 0 0 15px rgba(5, 217, 232, 0.2); transform: translateY(-2px); }
+        .btn:active { transform: translateY(1px); }
+        
+        .btn-pink { border-color: var(--neon-pink); box-shadow: 0 0 10px rgba(255, 42, 109, 0.1); }
+        .btn-pink:hover { background: rgba(255, 42, 109, 0.1); box-shadow: 0 0 20px rgba(255, 42, 109, 0.4), inset 0 0 15px rgba(255, 42, 109, 0.2); }
+        .btn-selected { background: var(--neon-blue); color: var(--dark-bg); box-shadow: 0 0 20px var(--neon-blue); border-color: var(--neon-blue); }
+
+        /* UI Elements */
+        .progress-container { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: rgba(255,255,255,0.05); z-index: 20; }
+        #level-progress { height: 100%; width: 0%; background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink)); transition: width 0.5s ease; box-shadow: 0 0 10px var(--neon-pink); }
+        .status-bar { position: absolute; top: 20px; width: 90%; max-width: 600px; display: flex; justify-content: space-between; padding: 10px 20px; box-sizing: border-box; }
+        .stat-box { text-align: center; }
+        .stat-val { display: block; font-family: 'Orbitron'; font-size: 1.2rem; font-weight: bold; color: var(--neon-blue); }
+        .stat-label { font-size: 0.65rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; }
+
+        /* Card Mechanics */
+        .card-container { width: 90%; max-width: 320px; height: 420px; perspective: 1500px; margin: 20px auto; cursor: pointer; }
+        .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform-style: preserve-3d; }
+        .card-inner.flipped { transform: rotateY(180deg) scale(1.02); }
+        .card-side { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; padding: 30px; box-sizing: border-box; border: 1px solid var(--border); }
+        .card-front { background: linear-gradient(145deg, rgba(20,20,30,0.9), rgba(10,10,15,0.9)); border-color: rgba(5, 217, 232, 0.5); box-shadow: inset 0 0 40px rgba(5, 217, 232, 0.1); }
+        .card-back { background: linear-gradient(145deg, rgba(30,15,20,0.9), rgba(15,5,10,0.9)); border-color: rgba(255, 42, 109, 0.5); transform: rotateY(180deg); box-shadow: inset 0 0 40px rgba(255, 42, 109, 0.1); }
+        
+        .glowing-icon { width: 80px; height: 80px; stroke: var(--neon-pink); filter: drop-shadow(0 0 10px var(--neon-pink)); margin-bottom: 20px; }
+
+        /* Dice Mechanics */
+        #dice-visual { 
+            font-size: 6rem; margin: 20px auto; display: inline-flex; align-items: center; justify-content: center;
+            width: 140px; height: 140px; color: var(--neon-blue); text-shadow: 0 0 30px rgba(5, 217, 232, 0.8);
+            border: 2px solid rgba(5, 217, 232, 0.3); border-radius: 25px; background: rgba(5, 217, 232, 0.05);
+            box-shadow: inset 0 0 20px rgba(5, 217, 232, 0.1); transition: all 0.3s;
+        }
+        @keyframes diceRollAnim { 
+            0% { transform: rotateX(0deg) rotateY(0deg) scale(1); color: var(--neon-pink); } 
+            25% { transform: rotateX(180deg) rotateY(90deg) scale(1.1); color: var(--neon-blue); }
+            50% { transform: rotateX(360deg) rotateY(180deg) scale(1.2); color: var(--neon-purple); }
+            75% { transform: rotateX(540deg) rotateY(270deg) scale(1.1); color: var(--neon-pink); }
+            100% { transform: rotateX(720deg) rotateY(360deg) scale(1); color: var(--neon-blue); } 
+        }
+
+        #bottle-visual { font-size: 7rem; margin: 30px; display: inline-block; transition: transform 3s cubic-bezier(0.1, 0, 0.1, 1); filter: drop-shadow(0 0 15px var(--neon-purple));}
+
+        /* Loading Spinner */
+        .loader { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: var(--neon-blue); border-right-color: var(--neon-pink); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .pulse-text { animation: pulse 1.5s infinite; letter-spacing: 4px; font-weight: bold; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+    
+    <audio id="bgm1" loop><source src="https://files.catbox.moe/5hy0yy.mp3" type="audio/mpeg"></audio>
+    <audio id="bgm2" loop><source src="https://files.catbox.moe/3yew8o.mp3" type="audio/mpeg"></audio>
+    
+    <div class="progress-container"><div id="level-progress"></div></div>
+
+    <div id="loading-screen" class="screen active">
+        <div class="loader"></div>
+        <div class="pulse-text" style="color: var(--neon-blue); font-family: 'Orbitron';">INITIALIZING PROTOCOL</div>
+    </div>
+
+    <div id="disclaimer-screen" class="screen">
+        <div class="glass-card" style="padding: 40px; width: 90%; max-width: 500px; text-align: center;">
+            <h2 style="color: var(--neon-pink); margin-bottom: 20px;">WARNING</h2>
+            <p style="color: #ccc; line-height: 1.6; font-size: 0.95rem; margin-bottom: 30px;">
+                Midnight Dare contains mature themes, suggestive scenarios, and intense emotional/physical dares.<br><br>
+                By proceeding, you agree that all players are consenting adults and that you play entirely at your own risk. Respect boundaries and use the "Refuse" option when necessary.
+            </p>
+            <button class="btn btn-pink" style="width: 100%;" onclick="switchScreen('start-screen')">I AGREE</button>
+        </div>
+    </div>
+
+    <div id="start-screen" class="screen">
+        <div class="glass-card" style="padding: 50px 30px; text-align: center; width: 90%; max-width: 450px;">
+            <h1 class="title-midnight">MIDNIGHT</h1>
+            <h1 class="title-dare">DARE</h1>
+            <div class="version-tag">Pro Edition V3.0</div>
+            <button class="btn btn-pink" style="width: 90%; margin-bottom: 15px;" onclick="switchScreen('char-screen')">Enter the Night</button>
+            <button class="btn" style="width: 90%;" onclick="switchScreen('rules-screen')">How to Play</button>
+        </div>
+    </div>
+
+    <div id="rules-screen" class="screen">
+        <div class="glass-card" style="padding: 30px; width: 90%; max-width: 500px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">System Rules</h2>
+            <div style="color: #ddd; line-height: 1.6; font-size: 0.95rem; text-align: left;">
+                <p><strong style="color: var(--neon-pink);">1. Paths:</strong> Your persona combination completely shifts the tone of the game.</p>
+                <p><strong style="color: var(--neon-blue);">2. The Cards:</strong> Tap to flip. Refusing a dare damages your Heat & Trust metrics.</p>
+                <p><strong style="color: var(--neon-purple);">3. Mini-Games:</strong> Fate's Roll & Spin the Bottle occur periodically to escalate tension.</p>
+            </div>
+            <button class="btn btn-pink" style="width: 100%; margin-top: 25px;" onclick="switchScreen('start-screen')">Acknowledge</button>
+        </div>
+    </div>
+
+    <div id="char-screen" class="screen">
+        <div class="glass-card" style="padding: 30px; width: 90%; max-width: 500px; text-align: center;">
+            <h2 style="margin-bottom: 20px;">Initialize Personas</h2>
+            <h3 style="color: #888; font-size: 0.8rem; text-transform: uppercase;">Player 1</h3>
+            <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <button class="btn p1-btn" style="width: 40%; min-width: 140px; padding: 12px;" onclick="selectChar(1, 'The Confident Rebel', this)">Rebel</button>
+                <button class="btn p1-btn" style="width: 40%; min-width: 140px; padding: 12px;" onclick="selectChar(1, 'The Shy Romantic', this)">Romantic</button>
+            </div>
+            <h3 style="color: #888; font-size: 0.8rem; text-transform: uppercase;">Player 2</h3>
+            <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-bottom: 30px;">
+                <button class="btn p2-btn" style="width: 40%; min-width: 140px; padding: 12px;" onclick="selectChar(2, 'The Bold Challenger', this)">Challenger</button>
+                <button class="btn p2-btn" style="width: 40%; min-width: 140px; padding: 12px;" onclick="selectChar(2, 'The Mysterious Charmer', this)">Charmer</button>
+            </div>
+            <button class="btn btn-pink" style="width: 90%;" onclick="startStory()">Start Sequence</button>
+        </div>
+    </div>
+
+    <div id="story-screen" class="screen">
+        <div class="status-bar glass-card">
+            <div class="stat-box"><span class="stat-label">Level</span><span class="stat-val" id="meter-level">1</span></div>
+            <div class="stat-box"><span class="stat-label" style="color: var(--neon-pink)">Heat</span><span class="stat-val" style="color: #fff" id="meter-rel">0</span></div>
+            <div class="stat-box"><span class="stat-label" style="color: var(--neon-purple)">Trust</span><span class="stat-val" style="color: #fff" id="meter-trust">0</span></div>
+        </div>
+        <div style="flex-grow: 1; display: flex; align-items: center;"><p style="color: rgba(255,255,255,0.3); font-style: italic; animation: pulse 2s infinite;">[ TAP BOX TO CONTINUE ]</p></div>
+        <div class="glass-card" style="width: 95%; max-width: 500px; margin-bottom: 30px; padding: 25px; cursor: pointer; position: relative;" onclick="nextDialogue()">
+            <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--neon-pink); border-radius: 16px 0 0 16px; box-shadow: 0 0 15px var(--neon-pink);"></div>
+            <div style="font-family: 'Orbitron'; color: var(--neon-pink); font-size: 1.3rem; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;" id="speaker-name">System</div>
+            <div id="dialogue-text" style="font-size: 1.1rem; line-height: 1.5; color: #e0e0e0;">Loading...</div>
+        </div>
+    </div>
+
+    <div id="dare-screen" class="screen">
+        <div class="status-bar glass-card">
+            <div class="stat-box"><span class="stat-label">Level</span><span class="stat-val" id="dare-meter-level">1</span></div>
+            <div class="stat-box"><span class="stat-label" style="color: var(--neon-pink)">Heat</span><span class="stat-val" style="color: #fff" id="dare-meter-rel">0</span></div>
+            <div class="stat-box"><span class="stat-label" style="color: var(--neon-purple)">Trust</span><span class="stat-val" style="color: #fff" id="dare-meter-trust">0</span></div>
+        </div>
+        <h2 style="margin-top: 80px; letter-spacing: 4px;">DARE TIME</h2>
+        <div class="card-container" onclick="flipCard()">
+            <div class="card-inner" id="active-card">
+                <div class="card-side card-front">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" class="glowing-icon">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                    <div style="font-family: 'Orbitron'; font-size: 1.2rem; color: var(--neon-blue); letter-spacing: 3px;">REVEAL</div>
+                    <div style="margin-top: 20px; font-size: 0.7rem; color: #666; text-transform: uppercase;">Tap the card</div>
+                </div>
+                <div class="card-side card-back">
+                    <div style="font-family: 'Orbitron'; color: var(--neon-pink); font-size: 1.4rem; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; text-shadow: 0 0 10px rgba(255,42,109,0.5);" id="card-title">Title</div>
+                    <div id="card-desc" style="font-size: 1.1rem; line-height: 1.5; color: #eee;">Desc</div>
+                </div>
+            </div>
+        </div>
+        <div style="width: 90%; max-width: 350px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;"><span style="font-size: 0.8rem; color: #888; font-family: 'Orbitron';">TIME</span><span id="timer-text" style="font-size: 0.9rem; color: var(--neon-pink); font-weight: bold; font-family: 'Orbitron';">--</span></div>
+            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 15px;"><div id="timer-bar" style="height: 100%; width: 100%; background: var(--neon-pink); box-shadow: 0 0 10px var(--neon-pink);"></div></div>
+        </div>
+        <div id="action-buttons" style="display: none; width: 100%; justify-content: center; gap: 10px;">
+            <button class="btn btn-pink" style="padding: 15px 35px;" onclick="resolveDare(true)">Accept</button>
+            <button class="btn" style="border-color: #ff3333; color: #ff3333; padding: 15px 35px;" onclick="resolveDare(false)">Refuse</button>
+        </div>
+    </div>
+
+    <div id="dice-screen" class="screen">
+        <div class="glass-card" style="padding: 40px 30px; width: 90%; max-width: 400px; text-align: center;">
+            <h2 style="color: var(--neon-blue);">FATE'S ROLL</h2>
+            <p style="color: #aaa; font-size: 0.9rem; margin-top: 5px;">Roll the die to seal your fate.</p>
+            
+            <div id="dice-visual">⚅</div> <p id="dice-result-text" style="color: white; font-weight: bold; font-size: 1.3rem; min-height: 40px; margin: 20px 0; text-transform: uppercase; letter-spacing: 2px;"></p>
+            
+            <button id="roll-btn" class="btn btn-pink" style="width: 90%;" onclick="rollDice()">Roll Die</button>
+            <button id="continue-dice-btn" class="btn" style="display: none; width: 90%;" onclick="finishMiniGame()">Continue</button>
+        </div>
+    </div>
+
+    <div id="bottle-screen" class="screen">
+        <div class="glass-card" style="padding: 30px; width: 90%; max-width: 400px; text-align: center;">
+            <h2 style="color: var(--neon-purple);">SPIN TO POSITION</h2>
+            <p style="color: #ccc; font-size: 0.9rem; margin-top: 10px;">The bottle dictates your proximity.</p>
+            <div id="bottle-visual">🍾</div>
+            <p id="bottle-result-text" style="color: var(--neon-pink); font-weight: bold; font-size: 1.1rem; min-height: 60px;"></p>
+            <button id="spin-btn" class="btn btn-pink" style="width: 90%;" onclick="spinBottle()">Spin Bottle</button>
+            <button id="continue-bottle-btn" class="btn" style="display: none; width: 90%;" onclick="finishMiniGame()">Apply Position</button>
+        </div>
+    </div>
+
+    <div id="end-screen" class="screen">
+        <div class="glass-card" style="padding: 40px; width: 90%; max-width: 500px; text-align: center;">
+            <h1 id="end-title" style="font-size: 2.5rem; margin-bottom: 20px; font-family: 'Orbitron';">ENDING</h1>
+            <p id="end-desc" style="font-size: 1.1rem; line-height: 1.6; color: #ddd; margin-bottom: 30px;"></p>
+            <h3 style="color: var(--neon-blue); letter-spacing: 2px; font-size: 0.9rem;">FINAL METRICS</h3>
+            <div style="display: flex; justify-content: space-around; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <div class="stat-box"><span class="stat-label">Rel</span><span class="stat-val" id="final-rel" style="color: #fff;">0</span></div>
+                <div class="stat-box"><span class="stat-label">Trust</span><span class="stat-val" id="final-trust" style="color: var(--neon-purple);">0</span></div>
+                <div class="stat-box"><span class="stat-label">Heat</span><span class="stat-val" id="final-heat" style="color: var(--neon-pink);">0</span></div>
+            </div>
+            <button class="btn btn-pink" style="width: 100%; margin-top: 30px;" onclick="location.reload()">Reboot Sequence</button>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        // --- Audio Synthesizer for SFX (No external assets needed) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playTone(freq, type, duration, vol=0.1) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // Attach click sound to all buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.btn') || e.target.closest('.glass-card') || e.target.closest('.card-container')) {
+                playTone(800, 'sine', 0.1, 0.05);
+            }
+        });
+
+        function playDiceSound() {
+            let i = 0;
+            let interval = setInterval(() => {
+                playTone(200 + Math.random() * 200, 'square', 0.05, 0.05);
+                if(++i > 10) clearInterval(interval);
+            }, 100);
+        }
+
+        // --- Particle Engine (Constellation Style like video) ---
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, particlesArray;
+
+        function resizeCanvas() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        class Particle {
+            constructor() { 
+                this.x = Math.random() * width; 
+                this.y = Math.random() * height; 
+                this.size = Math.random() * 2 + 1; 
+                this.color = Math.random() > 0.5 ? 'rgba(255, 42, 109, 0.8)' : 'rgba(5, 217, 232, 0.8)'; 
+                this.speedX = (Math.random() - 0.5) * 0.5; 
+                this.speedY = (Math.random() - 0.5) * 0.5; 
+            }
+            draw() { 
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); 
+            }
+            update() { 
+                this.x += this.speedX; this.y += this.speedY; 
+                if(this.x < 0 || this.x > width) this.speedX *= -1; 
+                if(this.y < 0 || this.y > height) this.speedY *= -1; 
+            }
+        }
+
+        function initParticles() { 
+            particlesArray = []; 
+            let numParticles = (window.innerWidth < 768) ? 40 : 80;
+            for (let i = 0; i < numParticles; i++) particlesArray.push(new Particle()); 
+        }
+
+        function animateParticles() { 
+            ctx.clearRect(0, 0, width, height); 
+            for (let i = 0; i < particlesArray.length; i++) { 
+                particlesArray[i].update(); 
+                particlesArray[i].draw(); 
+                
+                // Constellation lines
+                for (let j = i; j < particlesArray.length; j++) {
+                    let dx = particlesArray[i].x - particlesArray[j].x;
+                    let dy = particlesArray[i].y - particlesArray[j].y;
+                    let distance = Math.sqrt(dx*dx + dy*dy);
+                    if (distance < 120) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 - distance/1200})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particlesArray[i].x, particlesArray[i].y);
+                        ctx.lineTo(particlesArray[j].x, particlesArray[j].y);
+                        ctx.stroke();
+                    }
+                }
+            } 
+            requestAnimationFrame(animateParticles); 
+        }
+        initParticles(); animateParticles();
+
+        // --- Startup Routine ---
+        window.onload = () => {
+            setTimeout(() => {
+                switchScreen('disclaimer-screen');
+            }, 2000); // 2 second loading screen
+        };
+
+        // --- Game State & Data ---
+        let state = { p1: "", p2: "", storyPath: "", level: 1, rel: 0, trust: 0, heat: 0, refusals: 0 };
+        let currentLevelIndex = 0; let currentStoryIndex = 0; let timerInterval; let timeLeft = 0; let currentDareData = null; let gameLevels = [];
+
+        // Dialogues & Data Arrays (Preserved from original)
+        const dialogueMatrix = [
+            { rivalry: [{speaker:"System",text:"Tension crackles."}, {speaker:"P1",text:"Ready to lose?"}, {speaker:"P2",text:"In your dreams."}], catmouse: [{speaker:"System",text:"Quiet tension."}, {speaker:"P1",text:"I've waited for this."}, {speaker:"P2",text:"Let's see if you can handle it."}], pushpull: [{speaker:"System",text:"Pressure builds."}, {speaker:"P2",text:"Sit. We're playing."}, {speaker:"P1",text:"Are you sure?"}], slowburn: [{speaker:"System",text:"The space is too small."}, {speaker:"P1",text:"No going back."}, {speaker:"P2",text:"I don't want to."}] },
+            { rivalry: [{speaker:"P1",text:"Give me a challenge."}], catmouse: [{speaker:"P1",text:"You look bothered."}, {speaker:"P2",text:"I'm not."}], pushpull: [{speaker:"P2",text:"You survived level 1."}], slowburn: [{speaker:"P1",text:"Your heart is beating fast."}] },
+            { rivalry: [{speaker:"P2",text:"This is going to be good."}], catmouse: [{speaker:"P2",text:"Think you can get in my head?"}], pushpull: [{speaker:"P1",text:"Moving fast."}], slowburn: [{speaker:"P2",text:"The room is getting warmer."}] },
+            { rivalry: [{speaker:"P1",text:"Sweating yet?"}], catmouse: [{speaker:"P1",text:"Trust me?"}, {speaker:"P2",text:"Not a bit."}], pushpull: [{speaker:"P2",text:"Let the game work."}], slowburn: [{speaker:"P1",text:"I hear your breathing change."}] },
+            { rivalry: [{speaker:"System",text:"Training wheels off."}], catmouse: [{speaker:"System",text:"Mind games escalate."}], pushpull: [{speaker:"System",text:"Boundaries blur."}], slowburn: [{speaker:"System",text:"Distance disappears."}] }
+        ];
+        const procRivalry = [[{speaker:"P1",text:"Still winning."}], [{speaker:"P2",text:"You're hesitating."}], [{speaker:"System",text:"The edge sharpens."}]];
+        const procCatMouse = [[{speaker:"P1",text:"Can't hide that smirk."}], [{speaker:"P2",text:"Are you blushing?"}], [{speaker:"System",text:"Heavy silence."}]];
+        const procPushPull = [[{speaker:"P2",text:"Do what the card says."}], [{speaker:"P1",text:"I don't know if I can."}], [{speaker:"System",text:"Overwhelmingly close."}]];
+        const procSlowBurn = [[{speaker:"P1",text:"Every level gets heavier."}], [{speaker:"P2",text:"Your eyes are dark."}], [{speaker:"System",text:"Thick with confessions."}]];
+        
+        function getProcDialogue(path) { 
+            if(path==='rivalry') return procRivalry[Math.floor(Math.random()*procRivalry.length)]; 
+            if(path==='catmouse') return procCatMouse[Math.floor(Math.random()*procCatMouse.length)]; 
+            if(path==='pushpull') return procPushPull[Math.floor(Math.random()*procPushPull.length)]; 
+            return procSlowBurn[Math.floor(Math.random()*procSlowBurn.length)]; 
+        }
+
+        const daresRivalry = [{t:"Digital Assassin", d:"Send a random emoji to the last person you texted."}, {t:"Stare Down", d:"Eye contact for 10s without laughing."}, {t:"Tech Swap", d:"Hand over unlocked phone for 20s."}, {t:"Slow Burn", d:"Guess the letter traced on your arm."}, {t:"Heartbeat", d:"Listen to their heartbeat for 30s."}, {t:"Interrogation", d:"Answer a 'Yes/No' truthfully with eye contact."}, {t:"Blindfold", d:"Eyes closed. Guess the food/drink fed to you."}, {t:"Trace", d:"Trace their hand outline slowly."}, {t:"Confession", d:"Admit your first impression of them."}, {t:"First Move", d:"Hold their face, lean in until lips almost touch for 15s."}, {t:"Whisper", d:"Whisper a secret into their ear."}, {t:"Pocket Check", d:"Search their pockets."}, {t:"Scent", d:"Guess their scent by smelling their neck and give hickey."}, {t:"Provocation", d:"Insult them playfully. If they laugh, you win.Winners can Remove others one cloth."}, {t:"Lap", d:"Sit on their lap for the next round."}, {t:"Deep Stare", d:"Stare at their lips for 15s and bite."}, {t:"Dance", d:"Dance With a pole."}, {t:"Pulse", d:"Feel their pulse for 20s and start rubbing sensory organs."}, {t:"Barrier", d:"Remove one non-essential piece of clothing."}, {t:"Trust Fall", d:"Fall backward into their arms."}, {t:"Blind Submission", d:"Eyes closed. They trace hands over your clothes for 30s."}, {t:"Command", d:"They dictate your posture for 3 rounds."}, {t:"Silent Treatment", d:"No speaking for 3 mins. Touch only.How you Want."}, {t:"Control", d:"Hold their wrists pinned for 1min pull closer."}, {t:"Massage", d:"Give a 1-min back massage.No clothes."}, {t:"Touch", d:"Touch the most sensitive place ."}, {t:"Proximity", d:"Legs must touch for 3 rounds and start rubbing with legs."}, {t:"Breath", d:"Lean in to feel breath, don't touch, smell parts of body."}, {t:"Handcuff", d:"Interlace fingers for 3 mins. Kiss. sit on lap."}, {t:"Threshold", d:"Describe what you want to do to them later."}, {t:"Anchor", d:"Foreheads together, breathe in sync for 1 min."}, {t:"Silhouette", d:"Dim lights. Trace their profile in the air."}, {t:"Jealousy", d:"Confess when you were jealous over them."}, {t:"Surrender", d:"French Kiss For 3 mins."}, {t:"Navigator", d:"Blindfold them and guide them by the waist."}, {t:"Phantom Touch", d:"Hover hands 1 inch over their body."}, {t:"Craving", d:"Whisper exactly what you want right now."}, {t:"Vow", d:"One Have To bow down. Whisper master."}, {t:"Graze", d:"Brush lips against their neck, don't kiss."}, {t:"Lock", d:"Tie One Person Hand."}, {t:"Temperature", d:"Run ice or warm hand over their collarbone to Waist."}, {t:"Taste", d:"Feed them fruit/candy using only your lips."}, {t:"Ear Whisper", d:"Press lips to ear and whisper their name.slow moan."}, {t:"Denial", d:"Kiss the corner of their mouth, pull away."}, {t:"See", d:"Say which Piece of clothes have to remove.remove all."}, {t:"Unraveling", d:"Remove their shoes and massage feet."}, {t:"Magnet", d:"Sit chest-to-chest, hug tight for 2 mins."}, {t:"Shift", d:"Spank 10 times.No moan. If moan restart."}, {t:"Note", d:"Write a secret down their stomach with your tongue."}, {t:"Pulse Point", d:"Lick them in waist."}, {t:"Ultimatum", d:"Command: 'Tell me what you want me to do next.'"}, {t:"Shadow", d:"Stand behind, hug waist, chin on shoulder."}, {t:"Sway", d:"Slow dance with no music.No clothes."}, {t:"Oral", d:"Oral service for 5 mins."}, {t:"Claim", d:"Leave a wet kiss on their collarbone,waist,sensory organ."}, {t:"Role Play", d:"Play Role of Master and servent. Ask for service."}, {t:"Build", d:"Run fingers from their spine into their bottom."}, {t:"Anticipation", d:"Close eyes. They place one kiss anywhere."}, {t:"Brink", d:"Jump by sitting in lap."}, {t:"Full Reveal", d:"Final dare. Do what position you like most."}];
+        const daresCatMouse = [{t:"Pickpocket", d:"Steal an item from them without them noticing."}, {t:"Counter-Flirt", d:"Counter their best pickup line sarcastically."}, {t:"Mirror", d:"Imitate their posture for 1 min."}, {t:"Nickname", d:"Give a condescending nickname for 5 rounds."}, {t:"Ego Stroke", d:"List 3 things they are terrible at."}, {t:"Stolen Sip", d:"Drink from their cup while making eye contact."}, {t:"Roast", d:"Give a brutal fashion critique."}, {t:"Fake Out", d:"Lean in to whisper, yell BOO."}, {t:"Power Trip", d:"Dictate their tone of voice for 3 rounds."}, {t:"Serenader", d:"Sing an inappropriate song dramatically."}, {t:"Boundary", d:"Use them as a footrest for 2 mins."}, {t:"Smirk Contest", d:"Hold a cocky smile the longest."}, {t:"Bow", d:"Dramatically kiss their hand; they must cringe."}, {t:"Interruption", d:"Cut them off mid-sentence for 3 rounds."}, {t:"Bribe", d:"Offer an absurd bribe to skip their turn."}, {t:"Arm Wrestle", d:"15-second arm wrestling match."}, {t:"Improv", d:"Act like rival spies in an elevator for 30s."}, {t:"Backhand", d:"Give a subtle insult compliment."}, {t:"Trophy", d:"Wear their jewelry like a prize for 10 levels."}, {t:"Lie Detector", d:"Tell 2 lies, 1 truth. They guess."}, {t:"Heckler", d:"Critique how they sit right now."}, {t:"Shove", d:"Playfully bump their shoulder hard."}, {t:"Eye Roll", d:"Exaggerated eye roll at their next sentence."}, {t:"Wingman", d:"Pitch why no one should date them."}, {t:"Staredown", d:"Staring contest with ugly faces."}, {t:"Boss", d:"Make them fetch water like an intern."}, {t:"Impersonator", d:"Act exactly like a mutual friend."}, {t:"Bluff", d:"Pretend you got a scandalous text."}, {t:"Dramatic Exit", d:"Leave the room in fake disgust, come back."}, {t:"Judgment", d:"Look them up and down, sigh heavily."}, {t:"Hijack", d:"Change their contact name in their phone."}, {t:"Challenge", d:"Bet they can't balance a coin on their nose."}, {t:"Oops", d:"Knock an object out of their hands."}, {t:"Rewrite", d:"Read their text in an evil villain voice."}, {t:"Over-Talk", d:"Talk for 45s without letting them speak."}, {t:"Confession", d:"Admit a rule you broke recently."}, {t:"Fumble", d:"Admit a terrible pickup line fail."}, {t:"Defiance", d:"Refuse to sit down next round."}, {t:"Tease", d:"Flick their forehead."}, {t:"Sabotage", d:"Untie their shoe without looking."}, {t:"Monologue", d:"Give a villain speech about winning."}, {t:"Fake Yawn", d:"Pretend to sleep while they read a card."}, {t:"Veto", d:"Use a fake veto card."}, {t:"Shadow", d:"Walk one step behind them for 30s."}, {t:"Bad Advice", d:"Give terrible hair styling advice."}, {t:"Annoyance", d:"Poke them until they swat you away."}, {t:"Smug", d:"Do a cocky victory dance."}, {t:"Provocateur", d:"Start a playful argument."}, {t:"Handshake", d:"Give a weak, sarcastic handshake."}, {t:"Translator", d:"Translate everything they say into 'what they mean'."}, {t:"Rejection", d:"Offer a high-five instead of a hug."}, {t:"Cheer", d:"Cheer sarcastically when they do a task."}, {t:"Distract", d:"Wave hands in their face."}, {t:"Critique", d:"Judge their posture out of 10."}, {t:"Mock Surrender", d:"Declare them Supreme Ruler."}, {t:"Fake Number", d:"Give them a fake phone number smoothly."}, {t:"Conspiracy", d:"Whisper a fake conspiracy theory."}, {t:"Slow Clap", d:"Sarcastic slow clap."}, {t:"Hypocrite", d:"Tell them to stop being competitive, aggressively."}, {t:"Stand-Off", d:"Argue nose-to-nose about a movie."}];
+        const daresPushPull = [{t:"Vulnerability", d:"Reveal biggest relationship fear."}, {t:"Soft Command", d:"Let them arrange your hair for 1 min."}, {t:"Stare", d:"Look into eyes until someone blushes."}, {t:"Memory Trap", d:"Answer a hyper-specific past question truthfully."}, {t:"Gentle Push", d:"Push them against the wall gently for 10s."}, {t:"Confession", d:"Confess a hidden crush in 30s."}, {t:"Shield Drop", d:"Admit what secretly hurts your feelings."}, {t:"Pulse Check", d:"Check their pulse to see if it speeds up."}, {t:"Silent Tear", d:"Describe a movie that makes you cry."}, {t:"Interview", d:"Answer 3 rapid personal questions."}, {t:"Protective", d:"Stand defensively in front of them for 30s."}, {t:"Soft Touch", d:"Trace their jawline with one finger."}, {t:"Defense Breaker", d:"Give a totally sincere apology."}, {t:"Written Word", d:"Write a compliment and put it in their pocket."}, {t:"Confrontation", d:"Tell them what is intimidating about them."}, {t:"Comfort", d:"Wrap arm around their shoulder for 1 min."}, {t:"Hidden Truth", d:"Admit a wrong first impression."}, {t:"Steadfast Hold", d:"Grip their wrists while they explain a poem."}, {t:"Guilt Trip", d:"Act hurt; they must console you."}, {t:"Unspoken", d:"Write a secret desire, show for 2s, destroy it."}, {t:"Tension Builder", d:"Walk circles around them silently."}, {t:"Calming", d:"Hum a lullaby while they close eyes."}, {t:"Boundary", d:"Ask permission to touch their face."}, {t:"Heartstring", d:"Explain your most cherished possession."}, {t:"Deflection", d:"Force them to answer a deep question."}, {t:"Safe Word", d:"Establish a safe word looking in their eyes."}, {t:"Observation", d:"Name 3 things about their outfit."}, {t:"Soothing Voice", d:"Read an article in a soft voice."}, {t:"Interrogation", d:"Shine flashlight and ask about first kiss."}, {t:"Emotional Anchor", d:"Hold hands, take 3 deep breaths."}, {t:"Dare to Care", d:"Ask about their day and listen for 2 mins."}, {t:"Redirection", d:"Kiss their cheek when they try to act tough."}, {t:"Weakness", d:"Admit an irrational fear."}, {t:"Rebuke", d:"Tell them off for a bad habit in a whisper."}, {t:"Stoic Test", d:"Make them smile using nostalgia."}, {t:"Demanding", d:"Demand to know their 'type'."}, {t:"Instinct", d:"Pull them away from fake falling object."}, {t:"Soft Confession", d:"Admit when you felt overwhelmed this week."}, {t:"Gaze Broken", d:"Stare until they cover their face."}, {t:"Reassurance", d:"List 3 reasons they are a good person."}, {t:"Empathy", d:"Describe a situation from their perspective."}, {t:"Anchor", d:"Rest head on their shoulder; don't move for 2 mins."}, {t:"Tough Love", d:"Give harsh but necessary advice."}, {t:"Melting Point", d:"Stroke their hair until they relax."}, {t:"Intimate Distance", d:"Stand 2 inches apart. Do not touch. Breathe."}, {t:"Deep Dive", d:"Ask about their relationship with parents."}, {t:"Subconscious", d:"Guide their hand to an object with their eyes closed."}, {t:"Promise", d:"Make them promise to take care of themselves."}, {t:"Unmasking", d:"Remove any glasses/hats hiding their face."}, {t:"Comfort Touch", d:"Rub their back in slow circles for 30s."}, {t:"Silent Demand", d:"Point to a spot; they must sit there."}, {t:"Confession", d:"Admit the last time you genuinely cried."}, {t:"Guide", d:"Guide them through a 1-min meditation."}, {t:"Penetrating Stare", d:"Look at them like you're reading their mind."}, {t:"Softening", d:"Speak only in whispers next round."}, {t:"Apology", d:"Apologize for being unfair in the past."}, {t:"Ultimatum", d:"Ask: 'Lose memories or ability to feel?'"}, {t:"Calming Touch", d:"Place cool hand on their forehead."}, {t:"Psych Thrill", d:"Whisper a threatening but protective promise."}, {t:"Vulnerable Rest", d:"Lie with head in their lap."}];
+        const daresSlowBurn = [{t:"Hand Kiss", d:"Bow and kiss their knuckles."}, {t:"Poetry", d:"Recite a poem/lyric into their eyes."}, {t:"Slow Dance", d:"Sway to imaginary jazz for 1 min."}, {t:"Hair Tuck", d:"Tuck a stray hair behind their ear."}, {t:"Stargazer", d:"Lie on floor, look up, describe dream vacation."}, {t:"Sweet Nothings", d:"Whisper a compliment in a foreign language."}, {t:"Profile", d:"Trace their profile in the air."}, {t:"Blush", d:"Compliment them until they blush."}, {t:"Love Letter", d:"Write a 2-sentence letter on a napkin."}, {t:"Waltz", d:"Offer hand: 'May I have this dance?'"}, {t:"Forehead Kiss", d:"Place a soft kiss on their forehead."}, {t:"Dream", d:"Describe the perfect breakfast in bed."}, {t:"Cheek Stroke", d:"Brush back of hand against their cheek."}, {t:"Soulful Stare", d:"Look with soft eyes for 30s, smiling."}, {t:"Suave Intro", d:"Re-introduce yourself like at a gala."}, {t:"Lifeline", d:"Trace the lifelines on their palm."}, {t:"Serenade", d:"Hum a romantic melody to them."}, {t:"Ideal Date", d:"Detail the absolute perfect date night."}, {t:"Caress", d:"Run fingers lightly down their arm."}, {t:"Fairytale", d:"Tell a 1-min fairytale starring you two."}, {t:"Adoring Sigh", d:"Look at them and sigh dreamily."}, {t:"Compliment Battle", d:"Trade compliments until someone gives up."}, {t:"Ring Finger", d:"Slide a makeshift ring on their finger."}, {t:"Soft Laughter", d:"Make them let out a genuine, soft laugh."}, {t:"Chivalry", d:"Offer them your jacket or a blanket."}, {t:"Sweet Confession", d:"Admit when you realized you liked them."}, {t:"Gentle Lean", d:"Lean your weight against their side."}, {t:"Devotion", d:"Watch them read the card with total adoration."}, {t:"Prompt", d:"Give a word; they make a romantic sentence."}, {t:"Kiss Blown", d:"Blow a kiss; they playfully catch it."}, {t:"Memory", d:"Recount your favorite happy memory together."}, {t:"Protective Arm", d:"Wrap arm around their waist, pull closer."}, {t:"Silence", d:"Hold hands in silence for 45s."}, {t:"Wink", d:"Deliver a slow, deliberate wink."}, {t:"Delicate Whisper", d:"Whisper 'You're wonderful' very quietly."}, {t:"Royal", d:"Call them 'Your Highness' for 3 rounds."}, {t:"Squeeze", d:"Hold hands, squeeze 3 times (I like you)."}, {t:"Vow", d:"Swear a dramatic vow to protect their honor."}, {t:"Tease", d:"Call them 'cute' teasingly."}, {t:"Song", d:"Play a song that reminds you of falling in love."}, {t:"Warm Embrace", d:"A warm, 15s hug with no ulterior motives."}, {t:"Title", d:"Give them a sweet pet name for the game."}, {t:"Smooth Save", d:"Pretend to trip; they catch you."}, {t:"Tender Question", d:"Ask: 'What makes you feel most loved?'"}, {t:"Nose Boop", d:"Gently tap the tip of their nose."}, {t:"Gifting", d:"Hand them an invisible bouquet."}, {t:"Apology", d:"Apologize playfully for being 'too romantic'."}, {t:"Longing", d:"Look at them like they are boarding a train forever."}, {t:"Reassurance", d:"Pat their hand reassuringly."}, {t:"Discovery", d:"Point out a tiny endearing detail about them."}, {t:"Dessert", d:"Feed them a bite of food sweetly."}, {t:"Door", d:"Pretend to open a carriage door for them."}, {t:"Lovestruck", d:"Stare at them like a lovesick teen."}, {t:"Rescue", d:"Describe how you'd rescue them from a tower."}, {t:"Gentle Breath", d:"Exhale softly near their cheek."}, {t:"Secret", d:"Whisper a PG-rated sweet secret."}, {t:"Chuckle", d:"Chuckle warmly at something they do."}, {t:"Retreat", d:"Pull away slowly after being close."}, {t:"Star", d:"Point out the window, name a star after them."}, {t:"Pet", d:"Smooth down the collar of their shirt."}];
+        
+        // Build 60-Level Engine
+        for (let i = 0; i < 60; i++) {
+            let pts = { rel: 5+Math.floor(i/10)*5, trust: 5+Math.floor(i/12)*5, heat: 5+Math.floor(i/8)*5 };
+            gameLevels.push({
+                level: i + 1,
+                dares: { rivalry: {...daresRivalry[i], pt: pts}, catmouse: {...daresCatMouse[i], pt: pts}, pushpull: {...daresPushPull[i], pt: pts}, slowburn: {...daresSlowBurn[i], pt: pts} }
+            });
+        }
+
+        // --- Core Functions ---
+        function switchScreen(id) { 
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
+            document.getElementById(id).classList.add('active'); 
+            updateMeters(); 
+        }
+
+        function updateMeters() {
+            document.getElementById('level-progress').style.width = `${((state.level-1)/60)*100}%`;
+            ['meter-level','dare-meter-level'].forEach(id => document.getElementById(id).innerText = state.level);
+            ['meter-rel','dare-meter-rel'].forEach(id => document.getElementById(id).innerText = state.heat);
+            ['meter-trust','dare-meter-trust'].forEach(id => document.getElementById(id).innerText = state.trust);
+        }
+
+        function selectChar(p, name, btn) {
+            state[`p${p}`] = name;
+            document.querySelectorAll(`.p${p}-btn`).forEach(b => b.classList.remove('btn-selected')); 
+            btn.classList.add('btn-selected');
+        }
+
+        function startStory() {
+            if(!state.p1 || !state.p2) return alert("System Auth Failed: Select both personas!");
+            
+            // Audio Context initialization on first real interaction
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('bgm1').play().catch(e=>{console.log("Audio play prevented")}); 
+            
+            if (state.p1.includes('Rebel') && state.p2.includes('Challenger')) state.storyPath = 'rivalry';
+            else if (state.p1.includes('Rebel') && state.p2.includes('Charmer')) state.storyPath = 'catmouse';
+            else if (state.p1.includes('Romantic') && state.p2.includes('Challenger')) state.storyPath = 'pushpull';
+            else state.storyPath = 'slowburn';
+            
+            loadLevel();
+        }
+
+        function loadLevel() {
+            if(currentLevelIndex >= 60) return calculateEnding();
+            currentStoryIndex = 0; 
+            state.level = gameLevels[currentLevelIndex].level;
+            
+            if (state.level === 31) { 
+                document.getElementById('bgm1').pause(); 
+                document.getElementById('bgm2').play().catch(e=>{}); 
+            }
+            switchScreen('story-screen'); 
+            showDialogue();
+        }
+
+        function showDialogue() {
+            let pathDial = currentLevelIndex < 5 ? dialogueMatrix[currentLevelIndex][state.storyPath] : getProcDialogue(state.storyPath);
+            if (currentStoryIndex < pathDial.length) {
+                let l = pathDial[currentStoryIndex]; 
+                document.getElementById('speaker-name').innerText = l.speaker==="P1"?state.p1:l.speaker==="P2"?state.p2:l.speaker; 
+                document.getElementById('dialogue-text').innerText = l.text;
+                playTone(400, 'triangle', 0.1, 0.02); // Dialogue beep
+            } else {
+                triggerDare(gameLevels[currentLevelIndex].dares[state.storyPath]);
+            }
+        }
+
+        function nextDialogue() { currentStoryIndex++; showDialogue(); }
+
+        function triggerDare(dare) {
+            currentDareData = dare; 
+            document.getElementById('card-title').innerText = dare.t; 
+            document.getElementById('card-desc').innerText = dare.d;
+            
+            let card = document.getElementById('active-card'); 
+            card.style.transition = 'none'; 
+            card.classList.remove('flipped'); 
+            void card.offsetWidth; 
+            card.style.transition = 'transform 0.8s';
+            
+            document.getElementById('action-buttons').style.display = "none"; 
+            document.getElementById('timer-bar').style.width = "100%"; 
+            switchScreen('dare-screen');
+        }
+
+        function flipCard() {
+            let card = document.getElementById('active-card');
+            if(!card.classList.contains('flipped')) {
+                playTone(900, 'sine', 0.2, 0.05); // Card flip sound
+                card.classList.add('flipped');
+                setTimeout(() => { 
+                    document.getElementById('action-buttons').style.display = "flex"; 
+                    if(currentLevelIndex%3===0 && currentLevelIndex>4) startTimer(Math.max(10, 30-Math.floor(currentLevelIndex/10)*5)); 
+                    else document.getElementById('timer-text').innerText = "NO LIMIT"; 
+                }, 800);
+            }
+        }
+
+        function startTimer(sec) {
+            timeLeft = sec; 
+            let bar = document.getElementById('timer-bar'); 
+            let txt = document.getElementById('timer-text');
+            void bar.offsetWidth; 
+            bar.style.transition = `width 1s linear`; 
+            clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => { 
+                timeLeft--; 
+                bar.style.width = `${(timeLeft/sec)*100}%`; 
+                txt.innerText = `${timeLeft}s`; 
+                
+                if (timeLeft <= 5 && timeLeft > 0) playTone(1200, 'square', 0.1, 0.05); // Warning beep
+                
+                if(timeLeft<=0) { 
+                    clearInterval(timerInterval); 
+                    alert("Time's up!"); 
+                    resolveDare(false); 
+                } 
+            }, 1000);
+        }
+
+        function resolveDare(acc) {
+            clearInterval(timerInterval);
+            if(acc) { 
+                state.rel += currentDareData.pt.rel; 
+                state.trust += currentDareData.pt.trust; 
+                state.heat += currentDareData.pt.heat; 
+                playTone(1500, 'sine', 0.3, 0.1); // Success
+            } else { 
+                state.refusals++; 
+                state.trust -= 15; 
+                state.heat -= 15; 
+                playTone(200, 'sawtooth', 0.4, 0.1); // Fail
+            }
+            currentLevelIndex++;
+            if(state.level%10===0 && currentLevelIndex<60) triggerDiceGame(); 
+            else if(state.level%5===0 && currentLevelIndex<60) triggerBottleGame(); 
+            else loadLevel();
+        }
+
+        // --- Custom Dice Mechanics ---
+        const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        const customOutcomes = ["Lip kiss", "Spank", "Lame joke", "Tease", "Hit", "Hand kiss"];
+
+        function triggerDiceGame() { 
+            document.getElementById('dice-visual').innerText = "⚅"; 
+            document.getElementById('dice-result-text').innerText = ""; 
+            document.getElementById('roll-btn').style.display = "block"; 
+            document.getElementById('continue-dice-btn').style.display = "none"; 
+            switchScreen('dice-screen'); 
+        }
+
+        function rollDice() {
+            let dice = document.getElementById('dice-visual'); 
+            let res = document.getElementById('dice-result-text'); 
+            document.getElementById('roll-btn').style.display = "none"; 
+            
+            playDiceSound();
+            dice.style.animation = "diceRollAnim 0.6s infinite linear";
+
+            let cycleInterval = setInterval(() => {
+                dice.innerText = diceFaces[Math.floor(Math.random() * 6)];
+            }, 100);
+
+            setTimeout(() => {
+                clearInterval(cycleInterval);
+                dice.style.animation = "none"; 
+                
+                // Roll 0 to 5
+                let resultIndex = Math.floor(Math.random() * 6);
+                dice.innerText = diceFaces[resultIndex];
+                
+                res.innerHTML = `<span style="color:var(--neon-pink); font-size: 1.5rem; text-shadow: 0 0 10px var(--neon-pink);">${customOutcomes[resultIndex]}</span>`;
+                
+                document.getElementById('continue-dice-btn').style.display = "block"; 
+                
+                // Add a small stat boost to keep the game moving
+                state.heat += 5; state.trust += 5; updateMeters();
+                
+            }, 1200); // 1.2 seconds roll time
+        }
+
+        // --- Bottle Mini Game ---
+        function triggerBottleGame() { 
+            document.getElementById('bottle-visual').style.transform = "rotate(0deg)"; 
+            document.getElementById('bottle-result-text').innerText = ""; 
+            document.getElementById('spin-btn').style.display = "block"; 
+            document.getElementById('continue-bottle-btn').style.display = "none"; 
+            switchScreen('bottle-screen'); 
+        }
+        function spinBottle() {
+            let bot = document.getElementById('bottle-visual'); 
+            let res = document.getElementById('bottle-result-text'); 
+            document.getElementById('spin-btn').style.display = "none";
+            
+            playDiceSound(); // Reuse rolling sound
+            bot.style.transform = `rotate(${(Math.floor(Math.random()*6)+5)*360 + Math.floor(Math.random()*360)}deg)`;
+            
+            setTimeout(() => { 
+                res.innerText = "Position:\nSwitch seats or sit closer!"; 
+                document.getElementById('continue-bottle-btn').style.display = "block"; 
+            }, 3000);
+        }
+
+        function finishMiniGame() { loadLevel(); }
+
+        // --- Ending Calculation ---
+        function calculateEnding() {
+            document.getElementById('bgm1').pause(); 
+            document.getElementById('bgm2').pause(); 
+            switchScreen('end-screen');
+            let t="", d="";
+            if(state.refusals >= 8) { 
+                t="THE FADE OUT"; d="Too many boundaries pushed too fast. Tension broke."; 
+                document.getElementById('end-title').style.color="#ffaa00"; 
+            } else if(state.heat>state.trust && state.heat>state.rel) { 
+                t="PURE PASSION"; d="Heat eclipsed everything. The real game begins now."; 
+                document.getElementById('end-title').style.color="var(--neon-pink)"; 
+            } else if(state.trust>state.heat && state.trust>state.rel) { 
+                t="ABSOLUTE DEVOTION"; d="Perfect trust built. A beautiful power dynamic."; 
+                document.getElementById('end-title').style.color="var(--neon-purple)"; 
+            } else { 
+                t="TRUE ROMANCE"; d="A perfect slow burn. The night is yours to write."; 
+                document.getElementById('end-title').style.color="var(--neon-blue)"; 
+            }
+            document.getElementById('end-title').innerText = t; 
+            document.getElementById('end-desc').innerText = d;
+            document.getElementById('final-rel').innerText = state.rel; 
+            document.getElementById('final-trust').innerText = state.trust; 
+            document.getElementById('final-heat').innerText = state.heat;
+        }
+    </script>
+</body>
+</html>
